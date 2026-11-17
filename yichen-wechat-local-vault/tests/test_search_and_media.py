@@ -37,6 +37,25 @@ def packed(text: str) -> bytes:
     return zstandard.ZstdCompressor().compress(text.encode("utf-8"))
 
 
+class CompressedBodyDependencyTests(unittest.TestCase):
+    def test_missing_decoder_never_returns_compressed_bytes_as_text(self):
+        payload = packed(file_xml("synthetic-evidence.docx", 123))
+        with mock.patch.object(vault_cli, "ZSTD_DECODER", None):
+            self.assertIsNone(vault_cli.decode_bytes(payload, 4))
+            self.assertIsNone(vault_cli.decode_bytes(payload, None))
+            self.assertEqual(vault_cli.decode_value(payload, 4), "[压缩消息未解码：缺少 zstandard 依赖]")
+            self.assertEqual(vault_cli.decode_bytes(b"ordinary text", 0), b"ordinary text")
+            self.assertEqual(vault_cli.decode_value(b"ordinary text", 0), "ordinary text")
+    def test_flagged_compression_and_bad_payload_do_not_fall_back(self):
+        with mock.patch.object(vault_cli, "ZSTD_DECODER", None):
+            self.assertIsNone(vault_cli.decode_bytes(b"flagged bytes", 4))
+        self.assertIsNone(vault_cli.decode_bytes(vault_cli.ZSTD_MAGIC + b"bad data", 4))
+        self.assertEqual(vault_cli.decode_value(vault_cli.ZSTD_MAGIC + b"bad data", 4), "[压缩消息解码失败]")
+    def test_available_decoder_preserves_file_xml(self):
+        original = file_xml("synthetic-evidence.docx", 123)
+        self.assertEqual(vault_cli.decode_value(packed(original), 4), original)
+
+
 class MacSearchTests(unittest.TestCase):
     def setUp(self):
         self.root = ARTIFACT_ROOT / (self._testMethodName + "-" + uuid.uuid4().hex) / "vault"

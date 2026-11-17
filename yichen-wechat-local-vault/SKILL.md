@@ -77,6 +77,17 @@ description: |
 
 ## 统一查询入口
 
+### Python 依赖缺失时
+
+解密需要 `pycryptodome`（导入名 `Crypto`），压缩正文读取需要 `zstandard`。如果当前 `python3` 缺依赖，优先复用本机已安装的完整运行环境；也可将下方命令中的 `python3` 换成 `uv run --with pycryptodome --with zstandard python`，保持原账号配置和参数，不能因此切换账号或重建明文库。例如：
+
+```bash
+uv run --with pycryptodome --with zstandard python {{SKILL_DIR}}/scripts/decrypt_all_dbs.py --mode incremental
+uv run --with pycryptodome --with zstandard python {{SKILL_DIR}}/scripts/vault_cli.py status --format text
+```
+
+缺少 `zstandard` 时，压缩消息必须显示明确的未解码提示，不能把压缩字节当UTF-8正文输出。遇到该提示，补齐运行依赖后重查原会话与时间范围，不能据此判断没有发送文件或没有消息。这里仅是执行环境回退；是否刷新仍按新鲜度闸门，不重复刷新已完成的同一批查询。
+
 日常查询优先使用 `scripts/vault_cli.py`。下列旧命令用于 Mac 已解密 vault；Windows 快照在脚本名后加 `snapshot`，按来源专用命令执行。查询入口本身不抓 key、不碰微信 UI。
 
 ```bash

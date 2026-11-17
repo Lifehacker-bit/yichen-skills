@@ -205,7 +205,9 @@ def decode_bytes(value, compression_flag=None) -> bytes | None:
     """Stored body as bytes, zstd-decompressed when marked; None if decompression fails."""
     data = bytes(value)
     should_try_zstd = data.startswith(ZSTD_MAGIC) or compression_flag == 4
-    if should_try_zstd and ZSTD_DECODER:
+    if should_try_zstd:
+        if ZSTD_DECODER is None:
+            return None
         try:
             return ZSTD_DECODER.decompress(data, max_output_size=1_000_000)
         except Exception:
@@ -220,6 +222,8 @@ def decode_value(value, compression_flag=None) -> str:
         return value
     data = decode_bytes(value, compression_flag)
     if data is None:
+        if ZSTD_DECODER is None:
+            return "[压缩消息未解码：缺少 zstandard 依赖]"
         return "[压缩消息解码失败]"
     try:
         return data.decode("utf-8", errors="replace")
